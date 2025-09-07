@@ -1,0 +1,28 @@
+# ----- SUPPLIER -----
+seller_name=Your Name
+seller_address=Your address, City
+seller_ico=12345678
+seller_dic=1234567890
+seller_icdph=SK1234567890
+seller_note1=Registered in the trade register, District Office CITY,
+seller_note2=Trade license number: 123-12345. Business name: Your Name.
+bic=YOURBANKXXX
+
+# ----- CLIENT -----
+client_name=Client s.r.o.
+client_address=Client address, City
+client_ico=12345678
+client_dic=1234567890
+client_icdph=SK1234567890
+
+# ----- PAYMENT / DATES -----
+iban=SK6475000000001234567890
+issue_date=15.08.2025
+currency=EUR
+days_due=14
+note=Invoice for services
+# vs=2025081501
+
+# ----- ITEMS -----
+items=
+    Service A,1,pcs,123
