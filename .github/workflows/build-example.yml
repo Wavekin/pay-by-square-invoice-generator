@@ -46,18 +46,17 @@ jobs:
                 "variable_symbol": "20250901"
               }, f, ensure_ascii=False, indent=2)
 
-          # пытаемся вызвать твой генератор; если нет — делаем плейсхолдер-PDF
           ok = False
           try:
-            import pay_by_square_invoice_generator as m   # поменяй имя модуля, если нужно
-            if hasattr(m, "generate_invoice"):
-              m.generate_invoice(inp, out); ok = True
-            elif hasattr(m, "main"):
-              m.main([inp, out]); ok = True
+            # ИСПОЛЬЗУЕМ ТВОЮ ФУНКЦИЮ ИЗ main.py
+            from main import generate_invoice
+            generate_invoice(inp, out)
+            ok = True
           except Exception as e:
             print("Generator not found/failed:", e)
 
           if not ok:
+            # Плейсхолдер PDF, если генератор не найден/упал
             from reportlab.lib.pagesizes import A4
             from reportlab.pdfgen import canvas
             c = canvas.Canvas(out, pagesize=A4)
@@ -73,7 +72,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-          pdftoppm -singlefile -png examples/sample_invoice.pdf examples/sample_invoice
+          # выше DPI — лучше читаемость
+          pdftoppm -singlefile -png -rx 200 -ry 200 examples/sample_invoice.pdf examples/sample_invoice
           ls -l examples/
 
       - name: Commit PNG preview
