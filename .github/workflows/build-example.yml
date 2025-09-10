@@ -1,10 +1,10 @@
 name: Build sample invoice (manual)
 
 on:
-  workflow_dispatch:  # ручной запуск из вкладки Actions
+  workflow_dispatch:  # ручной запуск из Actions
 
 permissions:
-  contents: write     # нужно, чтобы закоммитить PNG-превью
+  contents: write     # чтобы закоммитить PNG превью
 
 jobs:
   build:
@@ -18,68 +18,52 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install deps
+      - name: Install dependencies
         run: |
           python -m pip install -U pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          pip install reportlab
+          # reportlab уже есть в requirements, но на всякий случай:
+          pip install -q reportlab
 
-      - name: Build sample invoice (use generator.generate_invoice or placeholder)
+      - name: Build invoice via main.py (or fallback placeholder)
+        shell: bash
         run: |
-          python - <<'PY'
-          import os, json, sys
-          os.makedirs("examples", exist_ok=True)
-          inp = "examples/sample_input.json"
-          out = "examples/sample_invoice.pdf"
+          set -e
+          mkdir -p invoices examples
 
-          # создаём пример входа, если его нет
-          if not os.path.exists(inp):
-            with open(inp, "w", encoding="utf-8") as f:
-              json.dump({
-                "invoice_no": "INV-0001",
-                "date": "2025-09-01",
-                "due_date": "2025-09-15",
-                "currency": "EUR",
-                "seller": {"name": "Demo s.r.o.", "iban": "SK00 0000 0000 0000 0000 0000"},
-                "buyer":  {"name": "Sample Client s.r.o."},
-                "items":  [{"name": "Service A", "qty": 1, "price": 100.0, "vat_rate": 0.20}],
-                "variable_symbol": "20250901"
-              }, f, ensure_ascii=False, indent=2)
+          # 1) Подготовим входной файл (твоя логика — TXT, не JSON)
+          if [ -f invoice_data_example.txt ]; then
+            cp -f invoice_data_example.txt invoice_data.txt
+          fi
 
-          ok = False
-          # пробуем generator.py в корне
-          try:
-            from generator import generate_invoice as _gen
-            _gen(inp, out)
-            ok = True
-          except Exception as e1:
-            # пробуем src/generator.py
-            try:
-              sys.path.append("src")
-              from generator import generate_invoice as _gen
-              _gen(inp, out)
-              ok = True
-            except Exception as e2:
-              print("Generator not found/failed:", e1, "|", e2)
+          # 2) Запускаем генерацию
+          gen_ok=true
+          python main.py || gen_ok=false
 
-          if not ok:
-            # плейсхолдер PDF, если генератор не найден/упал
-            from reportlab.lib.pagesizes import A4
-            from reportlab.pdfgen import canvas
-            c = canvas.Canvas(out, pagesize=A4)
-            c.drawString(72, 800, "Sample invoice (placeholder)")
-            c.drawString(72, 780, "Input: examples/sample_input.json")
-            c.save()
-            print("Wrote placeholder:", out)
-          else:
-            print("Wrote:", out)
-          PY
+          # 3) Берём свежий PDF из invoices/ или делаем плейсхолдер
+          if $gen_ok && ls invoices/*.pdf >/dev/null 2>&1; then
+            latest_pdf="$(ls -t invoices/*.pdf | head -n 1)"
+            echo "Found PDF: $latest_pdf"
+            cp "$latest_pdf" examples/sample_invoice.pdf
+          else
+            echo "No PDF produced; writing placeholder…"
+            python - <<'PY'
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+c = canvas.Canvas("examples/sample_invoice.pdf", pagesize=A4)
+c.drawString(72, 800, "Sample invoice (placeholder)")
+c.drawString(72, 780, "Input: invoice_data.txt")
+c.save()
+print("Wrote placeholder: examples/sample_invoice.pdf")
+PY
+          fi
+          ls -l examples/
 
       - name: Create PNG preview from PDF
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-          # больше DPI — лучше качество превью
+          # Повышаем DPI для читаемости
           pdftoppm -singlefile -png -rx 200 -ry 200 examples/sample_invoice.pdf examples/sample_invoice
           ls -l examples/
 
