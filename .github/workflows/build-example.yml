@@ -25,21 +25,20 @@ jobs:
           pip install reportlab
 
       - name: Build invoice via main.py (or fallback placeholder)
-        shell: bash
         run: |
           set -e
           mkdir -p invoices examples
 
-          # 1) подготовим входной файл (TXT)
+          # 1) подготовить входной TXT
           if [ -f invoice_data_example.txt ]; then
             cp -f invoice_data_example.txt invoice_data.txt
           fi
 
-          # 2) запуск генерации
+          # 2) запустить генерацию (не роняем пайплайн, просто отмечаем флагом)
           gen_ok=true
           python main.py || gen_ok=false
 
-          # 3) берём свежий PDF из invoices/ или делаем плейсхолдер
+          # 3) взять свежий PDF или сделать плейсхолдер
           if $gen_ok && ls invoices/*.pdf >/dev/null 2>&1; then
             latest_pdf="$(ls -t invoices/*.pdf | head -n 1)"
             echo "Found PDF: $latest_pdf"
@@ -63,7 +62,6 @@ PY
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-          # больше DPI — лучше качество
           pdftoppm -singlefile -png -rx 200 -ry 200 examples/sample_invoice.pdf examples/sample_invoice
           ls -l examples/
 
