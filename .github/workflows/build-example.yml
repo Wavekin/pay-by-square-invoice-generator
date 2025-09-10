@@ -4,7 +4,7 @@ on:
   workflow_dispatch:  # ручной запуск из Actions
 
 permissions:
-  contents: write     # чтобы закоммитить PNG превью
+  contents: write     # чтобы закоммитить PNG-превью
 
 jobs:
   build:
@@ -22,8 +22,7 @@ jobs:
         run: |
           python -m pip install -U pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          # reportlab уже есть в requirements, но на всякий случай:
-          pip install -q reportlab
+          pip install reportlab
 
       - name: Build invoice via main.py (or fallback placeholder)
         shell: bash
@@ -31,22 +30,22 @@ jobs:
           set -e
           mkdir -p invoices examples
 
-          # 1) Подготовим входной файл (твоя логика — TXT, не JSON)
+          # 1) подготовим входной файл (TXT)
           if [ -f invoice_data_example.txt ]; then
             cp -f invoice_data_example.txt invoice_data.txt
           fi
 
-          # 2) Запускаем генерацию
+          # 2) запуск генерации
           gen_ok=true
           python main.py || gen_ok=false
 
-          # 3) Берём свежий PDF из invoices/ или делаем плейсхолдер
+          # 3) берём свежий PDF из invoices/ или делаем плейсхолдер
           if $gen_ok && ls invoices/*.pdf >/dev/null 2>&1; then
             latest_pdf="$(ls -t invoices/*.pdf | head -n 1)"
             echo "Found PDF: $latest_pdf"
             cp "$latest_pdf" examples/sample_invoice.pdf
           else
-            echo "No PDF produced; writing placeholder…"
+            echo "No PDF produced; writing placeholder..."
             python - <<'PY'
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -57,13 +56,14 @@ c.save()
 print("Wrote placeholder: examples/sample_invoice.pdf")
 PY
           fi
+
           ls -l examples/
 
       - name: Create PNG preview from PDF
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-          # Повышаем DPI для читаемости
+          # больше DPI — лучше качество
           pdftoppm -singlefile -png -rx 200 -ry 200 examples/sample_invoice.pdf examples/sample_invoice
           ls -l examples/
 
