@@ -24,10 +24,10 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install reportlab
 
-      - name: Build sample invoice (auto or placeholder)
+      - name: Build sample invoice (use generator.generate_invoice or placeholder)
         run: |
           python - <<'PY'
-          import os, json
+          import os, json, sys
           os.makedirs("examples", exist_ok=True)
           inp = "examples/sample_input.json"
           out = "examples/sample_invoice.pdf"
@@ -47,16 +47,23 @@ jobs:
               }, f, ensure_ascii=False, indent=2)
 
           ok = False
+          # пробуем generator.py в корне
           try:
-            # ИСПОЛЬЗУЕМ ТВОЮ ФУНКЦИЮ ИЗ main.py
-            from main import generate_invoice
-            generate_invoice(inp, out)
+            from generator import generate_invoice as _gen
+            _gen(inp, out)
             ok = True
-          except Exception as e:
-            print("Generator not found/failed:", e)
+          except Exception as e1:
+            # пробуем src/generator.py
+            try:
+              sys.path.append("src")
+              from generator import generate_invoice as _gen
+              _gen(inp, out)
+              ok = True
+            except Exception as e2:
+              print("Generator not found/failed:", e1, "|", e2)
 
           if not ok:
-            # Плейсхолдер PDF, если генератор не найден/упал
+            # плейсхолдер PDF, если генератор не найден/упал
             from reportlab.lib.pagesizes import A4
             from reportlab.pdfgen import canvas
             c = canvas.Canvas(out, pagesize=A4)
@@ -72,7 +79,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y poppler-utils
-          # выше DPI — лучше читаемость
+          # больше DPI — лучше качество превью
           pdftoppm -singlefile -png -rx 200 -ry 200 examples/sample_invoice.pdf examples/sample_invoice
           ls -l examples/
 
