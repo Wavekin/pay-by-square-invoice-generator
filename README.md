@@ -44,3 +44,9 @@ items=
 
 ## License
 MIT © 2025 Dmytro Afanasiev
+
+## Example
+Input: `examples/sample_input.json`  
+Output: `examples/sample_invoice.pdf`
+
+![Sample invoice](examples/sample_invoice.png)
