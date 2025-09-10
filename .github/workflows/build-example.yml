@@ -1,0 +1,71 @@
+name: Build sample invoice (manual)
+
+on:
+  workflow_dispatch:  # запускать вручную из вкладки Actions
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install reportlab
+
+      - name: Build sample invoice (auto or placeholder)
+        run: |
+          python - <<'PY'
+          import os, json
+          os.makedirs("examples", exist_ok=True)
+
+          # 1) создаём пример входа, если его нет
+          sample = {
+              "invoice_no": "INV-0001",
+              "date": "2025-09-01",
+              "seller": {"name": "Demo s.r.o.", "iban": "SK00 0000 0000 0000 0000 0000"},
+              "buyer": {"name": "Sample Client"},
+              "items": [{"name": "Service A", "qty": 1, "price": 100}],
+              "currency": "EUR"
+          }
+          inp = "examples/sample_input.json"
+          if not os.path.exists(inp):
+              with open(inp, "w", encoding="utf-8") as f:
+                  json.dump(sample, f, ensure_ascii=False, indent=2)
+
+          # 2) пытаемся вызвать твой генератор; если не получилось — делаем плейсхолдер-PDF
+          out = "examples/sample_invoice.pdf"
+          ok = False
+          try:
+              import pay_by_square_invoice_generator as m  # если модуль так называется
+              if hasattr(m, "generate_invoice"):
+                  m.generate_invoice(inp, out); ok = True
+              elif hasattr(m, "main"):
+                  m.main([inp, out]); ok = True
+          except Exception as e:
+              print("Generator not found/failed:", e)
+
+          if not ok:
+              from reportlab.lib.pagesizes import A4
+              from reportlab.pdfgen import canvas
+              c = canvas.Canvas(out, pagesize=A4)
+              c.drawString(72, 800, "Sample invoice (placeholder)")
+              c.drawString(72, 780, "Input: examples/sample_input.json")
+              c.save()
+              print("Wrote placeholder:", out)
+          else:
+              print("Wrote:", out)
+          PY
+
+      - name: Upload examples as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: examples
+          path: examples/
